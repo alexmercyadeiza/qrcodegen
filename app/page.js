@@ -10,27 +10,17 @@ import {
   Download,
   ExternalLink,
 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
+
 import QRCode from "qrcode";
 import Link from "next/link";
 import Image from "next/image";
 
-// Check if Supabase environment variables are available
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const useLocalStorageOnly = false;
-
-// Create Supabase client only if credentials are available
-const supabase = !useLocalStorageOnly
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
-
 const generateQRCode = (text) => {
   return QRCode.toDataURL(text, {
-    width: 2000, // Increased from 400 to 2000 for higher resolution
-    margin: 4, // Added margin for better scanning
-    errorCorrectionLevel: "H", // Highest error correction
-    type: "image/png", // Explicitly set to PNG for better quality
+    width: 2000,
+    margin: 4,
+    errorCorrectionLevel: "H",
+    type: "image/png",
     color: {
       dark: "#000000",
       light: "#FFFFFF",
@@ -38,77 +28,28 @@ const generateQRCode = (text) => {
   });
 };
 
-const saveToSupabase = async (qrData) => {
-  // Generate a unique ID
+const saveQRCode = async (qrData) => {
   const id = Math.random().toString(36).substring(2, 15);
-  // Create the data object to save with a locally generated ID
   const savedData = { id, ...qrData, created_at: new Date().toISOString() };
   
-  // Always save to localStorage as the primary storage
   try {
     const existing = JSON.parse(localStorage.getItem("qr_codes") || "[]");
     existing.push(savedData);
     localStorage.setItem("qr_codes", JSON.stringify(existing));
   } catch (err) {
     console.error("Error saving to localStorage:", err);
-    return null; // Return null if we can't save to localStorage
+    return null;
   }
-
-  // Optionally save to Supabase as a backup only if explicitly requested
-  // This won't affect the user's local experience
-  if (!useLocalStorageOnly) {
-    try {
-      // Save to Supabase in the background, but don't wait for it
-      // and don't use the returned ID
-      supabase
-        .from("qr_codes")
-        .insert([qrData])
-        .then(({ data, error }) => {
-          if (error) console.error("Background Supabase save error:", error);
-        })
-        .catch(err => {
-          console.error("Error saving to Supabase:", err);
-        });
-    } catch (err) {
-      console.error("Error initiating Supabase save:", err);
-      // Continue regardless of Supabase errors
-    }
-  }
-
 
   return savedData;
 };
 
-const getFromSupabase = async () => {
-  // If we're using localStorage only, skip Supabase
-  if (useLocalStorageOnly) {
-    try {
-      return JSON.parse(localStorage.getItem("qr_codes") || "[]");
-    } catch (err) {
-      console.error("Error reading from localStorage:", err);
-      return [];
-    }
-  }
-
-  // Otherwise try Supabase first
+const getQRCodes = async () => {
   try {
-    const { data, error } = await supabase.from("qr_codes").select("*");
-
-    if (error) {
-      throw error;
-    }
-
-    return data || [];
+    return JSON.parse(localStorage.getItem("qr_codes") || "[]");
   } catch (err) {
-    console.log("Falling back to localStorage");
-
-    // Fallback to localStorage
-    try {
-      return JSON.parse(localStorage.getItem("qr_codes") || "[]");
-    } catch (storageErr) {
-      console.error("Error reading from localStorage:", storageErr);
-      return [];
-    }
+    console.error("Error reading from localStorage:", err);
+    return [];
   }
 };
 
@@ -126,7 +67,7 @@ export default function QRCodeGenerator() {
   }, []);
 
   const loadHistory = async () => {
-    const history = await getFromSupabase();
+    const history = await getQRCodes();
     setQrHistory((history ?? []).reverse()); // Show newest first, safely handles null/undefined
   };
 
@@ -160,7 +101,7 @@ export default function QRCodeGenerator() {
         short_id: Math.random().toString(36).substring(2, 8),
       };
 
-      const savedRecord = await saveToSupabase(qrRecord);
+      const savedRecord = await saveQRCode(qrRecord);
       setCurrentQR(savedRecord);
       setShowModal(true);
       setUrl("");
@@ -191,12 +132,7 @@ export default function QRCodeGenerator() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-indigo-50">
-      {/* Header */}
-      {/* <header className="relative overflow-hidden bg-white/80 backdrop-blur-sm border-b border-violet-100">
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-600/5 to-indigo-600/5"></div>
-      </header> */}
-
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-indigo-50">  
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-4 md:px-8 md:py-16">
         <div className="mb-8 flex items-center justify-between">
