@@ -18,7 +18,7 @@ import Image from "next/image";
 // Check if Supabase environment variables are available
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const useLocalStorageOnly = !SUPABASE_URL || !SUPABASE_ANON_KEY;
+const useLocalStorageOnly = false;
 
 // Create Supabase client only if credentials are available
 const supabase = !useLocalStorageOnly
@@ -38,39 +38,43 @@ const generateQRCode = (text) => {
   });
 };
 
-// Mock Supabase functions
 const saveToSupabase = async (qrData) => {
   // Generate a unique ID
   const id = Math.random().toString(36).substring(2, 15);
+  // Create the data object to save with a locally generated ID
   const savedData = { id, ...qrData, created_at: new Date().toISOString() };
-
-  // If we're not using localStorage only, try to save to Supabase
-  if (!useLocalStorageOnly) {
-    try {
-      // Try to save to Supabase
-      const { data, error } = await supabase
-        .from("qr_codes")
-        .insert([qrData])
-        .select();
-
-      // Update ID if Supabase returned one
-      if (data && data[0]?.id) {
-        savedData.id = data[0].id;
-      }
-    } catch (err) {
-      console.error("Error saving to Supabase:", err);
-      // Continue with localStorage (we already have savedData prepared)
-    }
-  }
-
-  // Always save to localStorage for demo/fallback
+  
+  // Always save to localStorage as the primary storage
   try {
     const existing = JSON.parse(localStorage.getItem("qr_codes") || "[]");
     existing.push(savedData);
     localStorage.setItem("qr_codes", JSON.stringify(existing));
   } catch (err) {
     console.error("Error saving to localStorage:", err);
+    return null; // Return null if we can't save to localStorage
   }
+
+  // Optionally save to Supabase as a backup only if explicitly requested
+  // This won't affect the user's local experience
+  if (!useLocalStorageOnly) {
+    try {
+      // Save to Supabase in the background, but don't wait for it
+      // and don't use the returned ID
+      supabase
+        .from("qr_codes")
+        .insert([qrData])
+        .then(({ data, error }) => {
+          if (error) console.error("Background Supabase save error:", error);
+        })
+        .catch(err => {
+          console.error("Error saving to Supabase:", err);
+        });
+    } catch (err) {
+      console.error("Error initiating Supabase save:", err);
+      // Continue regardless of Supabase errors
+    }
+  }
+
 
   return savedData;
 };
