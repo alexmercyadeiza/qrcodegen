@@ -1,6 +1,6 @@
 import "./globals.css";
 
-const metadata = {
+export const metadata = {
     title: "True QR",
     description: "No fluff, just QR codes.",
 }
