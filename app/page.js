@@ -177,29 +177,13 @@ export default function QRCodeGenerator() {
   const downloadQR = () => {
     if (!currentQR) return;
 
-    // Create a new image to ensure we get the highest quality
-    const img = new Image();
-    img.onload = () => {
-      // Create a canvas to handle the download
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      // Set canvas size to match the image
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-
-      // Draw the image on the canvas
-      ctx.drawImage(img, 0, 0);
-
-      // Create download link
-      const link = document.createElement("a");
-      link.download = `qr-code-${currentQR.short_id}.png`;
-      link.href = canvas.toDataURL("image/png", 1.0); // Highest quality
-      link.click();
-    };
-
-    // Set the image source to the QR code data URL
-    img.src = currentQR.qr_code_data;
+    // Direct download from the data URL
+    const link = document.createElement("a");
+    link.download = `qr-code-${currentQR.short_id}.png`;
+    link.href = currentQR.qr_code_data;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -279,7 +263,7 @@ export default function QRCodeGenerator() {
             </div>
 
             <div className="text-center space-y-4">
-              <div className="bg-gray-50 rounded-2xl">
+              <div className="flex justify-center items-center mx-auto rounded-2xl">
                 <Image
                   src={currentQR.qr_code_data}
                   alt="QR Code"
