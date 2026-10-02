@@ -11,16 +11,16 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
     "lucide-react": "^0.513.0",
-    "next": "15.3.3",
+    "next": "15.5.27",
     "qrcode": "^1.5.4",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "19.0.8",
+    "react-dom": "19.0.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
-    "eslint-config-next": "15.3.3",
+    "eslint-config-next": "15.5.27",
     "tailwindcss": "^4"
   }
 }
