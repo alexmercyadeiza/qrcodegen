@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import QRCode from "qrcode";
+import { createQRDownload } from "./lib/qr-download";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -61,6 +62,8 @@ export default function QRCodeGenerator() {
   const [currentQR, setCurrentQR] = useState(null);
   const [qrHistory, setQrHistory] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState("");
+  const [downloadError, setDownloadError] = useState("");
 
   useEffect(() => {
     loadHistory();
@@ -119,16 +122,27 @@ export default function QRCodeGenerator() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const downloadQR = () => {
-    if (!currentQR) return;
-
-    // Direct download from the data URL
-    const link = document.createElement("a");
-    link.download = `qr-code-${currentQR.short_id}.png`;
-    link.href = currentQR.qr_code_data;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadQR = async (format) => {
+    if (!currentQR || downloading) return;
+    setDownloading(format);
+    setDownloadError("");
+    try {
+      // Regenerate from the URL, including QR codes saved before export upgrades.
+      const blob = await createQRDownload(currentQR.original_url, format);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = `qr-code-${currentQR.short_id}.${format}`;
+      link.href = objectUrl;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (error) {
+      console.error("QR download failed:", error);
+      setDownloadError("Could not download this QR code. Please try again.");
+    } finally {
+      setDownloading("");
+    }
   };
 
   return (
@@ -191,7 +205,7 @@ export default function QRCodeGenerator() {
       {/* QR Code Modal */}
       {showModal && currentQR && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[90dvh] overflow-y-auto p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-800">Your QR Code</h3>
               <button
@@ -228,22 +242,34 @@ export default function QRCodeGenerator() {
                 </Link>
               </div>
 
-              <div className="flex space-x-3">
+              <div className="space-y-3">
                 <button
                   onClick={() => copyToClipboard(currentQR.original_url)}
-                  className="flex-1 font-medium flex items-center justify-center space-x-2 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                  className="w-full font-medium flex items-center justify-center space-x-2 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
                 >
                   <Copy className="w-4 h-4" />
                   <span>{copied ? "Copied!" : "Copy URL"}</span>
                 </button>
-
-                <button
-                  onClick={downloadQR}
-                  className="flex-1 font-medium flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-violet-500 to-indigo-600 text-white rounded-xl hover:from-violet-600 hover:to-indigo-700 transition-all"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download</span>
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => downloadQR("png")}
+                    disabled={Boolean(downloading)}
+                    className="font-medium flex items-center justify-center space-x-2 py-3 bg-gradient-to-r from-violet-500 to-indigo-600 text-white rounded-xl hover:from-violet-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{downloading === "png" ? "Preparing..." : "Download PNG"}</span>
+                  </button>
+                  <button
+                    onClick={() => downloadQR("svg")}
+                    disabled={Boolean(downloading)}
+                    className="font-medium flex items-center justify-center space-x-2 py-3 bg-violet-100 text-violet-700 rounded-xl hover:bg-violet-200 transition-all disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{downloading === "svg" ? "Preparing..." : "Download SVG"}</span>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500">PNG: 4096+ pixels, 2 MB+ · SVG: scalable vector</p>
+                {downloadError && <p role="alert" className="text-sm text-red-600">{downloadError}</p>}
               </div>
             </div>
           </div>
